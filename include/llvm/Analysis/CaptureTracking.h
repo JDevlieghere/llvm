@@ -21,6 +21,7 @@ namespace llvm {
   class Instruction;
   class DominatorTree;
   class OrderedBasicBlock;
+  class AAResults;
 
   /// PointerMayBeCaptured - Return true if this pointer value may be captured
   /// by the enclosing function (which is required to exist).  This routine can
@@ -32,6 +33,17 @@ namespace llvm {
   bool PointerMayBeCaptured(const Value *V,
                             bool ReturnCaptures,
                             bool StoreCaptures);
+
+  /// PointerMayBeCaptured - Return true if this pointer value may be captured
+  /// by the enclosing function (which is required to exist).  This routine can
+  /// be expensive, so consider caching the results.  The boolean ReturnCaptures
+  /// specifies whether returning the value (or part of it) from the function
+  /// counts as capturing it or not.  The boolean StoreCaptures specified
+  /// whether storing the value (or part of it) into memory anywhere
+  /// automatically counts as capturing it or not. For the latter to have
+  /// effect, Alias Analysis results are required.
+  bool PointerMayBeCaptured(const Value *V, bool ReturnCaptures,
+                            bool StoreCaptures, AAResults *AA);
 
   /// PointerMayBeCapturedBefore - Return true if this pointer value may be
   /// captured by the enclosing function (which is required to exist). If a

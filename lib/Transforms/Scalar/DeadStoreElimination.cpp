@@ -1089,8 +1089,9 @@ static bool eliminateDeadStores(BasicBlock &BB, AliasAnalysis *AA,
             // where the allocation doesn't escape before the last
             // throwing instruction; PointerMayBeCaptured
             // reasonably fast approximation.
-            IsStoreDeadOnUnwind = isAllocLikeFn(Underlying, TLI) &&
-                !PointerMayBeCaptured(Underlying, false, true);
+            IsStoreDeadOnUnwind =
+                isAllocLikeFn(Underlying, TLI) &&
+                !PointerMayBeCaptured(Underlying, false, false, AA);
         }
         if (!IsStoreDeadOnUnwind)
           break;

@@ -54,6 +54,70 @@ namespace {
     bool Captured;
   };
 
+  struct OptimisticCaptureTracker : public CaptureTracker {
+
+    OptimisticCaptureTracker(bool ReturnCaptures, bool StoreCaptures,
+                             AliasAnalysis *AA)
+        : ReturnCaptures(ReturnCaptures), StoreCaptures(StoreCaptures), AA(AA),
+          Captured(false) {}
+
+    void tooManyUses() override { Captured = true; }
+
+    bool storeCaptures(const StoreInst *S) {
+      if (StoreCaptures)
+        return true;
+
+      if (!AA)
+        return true;
+
+      const Function *F = S->getFunction();
+      const Value *Ptr = S->getPointerOperand();
+
+      // Check if the pointer is stored to a function argument.
+      for (auto &Arg : F->getArgumentList()) {
+        if (!isa<PointerType>(Arg.getType()))
+          continue;
+
+        if (auto *V = dyn_cast<Value>(&Arg)) {
+          if (!AA->isNoAlias(Ptr, V)) {
+            return true;
+          }
+        }
+      }
+
+      // Check if the pointer is stored to a global.
+      for (auto &Global : F->getParent()->globals()) {
+        if (auto *V = dyn_cast<Value>(&Global)) {
+          if (!AA->isNoAlias(Ptr, V)) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }
+
+    bool captured(const Use *U) override {
+
+      if (isa<ReturnInst>(U->getUser()) && !ReturnCaptures)
+        return false;
+
+      if (auto *S = dyn_cast<StoreInst>(U->getUser()))
+        if (!storeCaptures(S))
+          return false;
+
+      Captured = true;
+      return true;
+    }
+
+    bool ReturnCaptures;
+    bool StoreCaptures;
+
+    AliasAnalysis *AA;
+
+    bool Captured;
+  };
+
   /// Only find pointer captures which happen before the given instruction. Uses
   /// the dominator tree to determine whether one instruction is before another.
   /// Only support the case where the Value is defined in the same basic block
@@ -165,11 +229,36 @@ bool llvm::PointerMayBeCaptured(const Value *V,
   // to determine whether this store is not actually an escape point.
   // In that case, BasicAliasAnalysis should be updated as well to
   // take advantage of this.
-  (void)StoreCaptures;
+  //(void)StoreCaptures;
 
-  SimpleCaptureTracker SCT(ReturnCaptures);
-  PointerMayBeCaptured(V, &SCT);
-  return SCT.Captured;
+  // TODO: We can essentially the SimpleCaptureTracker completely with the
+  // Optimistic one and possibly reuse the name?
+
+  // SimpleCaptureTracker SCT(ReturnCaptures);
+  // PointerMayBeCaptured(V, &SCT);
+  // return SCT.Captured;
+
+  OptimisticCaptureTracker OCT(ReturnCaptures, StoreCaptures, nullptr);
+  PointerMayBeCaptured(V, &OCT);
+  return OCT.Captured;
+}
+
+/// PointerMayBeCaptured - Return true if this pointer value may be captured by
+/// the enclosing function (which is required to exist).  This routine can be
+/// expensive, so consider caching the results.  The boolean ReturnCaptures
+/// specifies whether returning the value (or part of it) from the function
+/// counts as capturing it or not.  The boolean StoreCaptures specified whether
+/// storing the value (or part of it) into memory anywhere automatically counts
+/// as capturing it or not. For the latter to have effect, Alias Analysis
+/// results are required.
+bool llvm::PointerMayBeCaptured(const Value *V, bool ReturnCaptures,
+                                bool StoreCaptures, AliasAnalysis *AA) {
+  assert(!isa<GlobalValue>(V) &&
+         "It doesn't make sense to ask whether a global is captured.");
+
+  OptimisticCaptureTracker OCT(ReturnCaptures, StoreCaptures, AA);
+  PointerMayBeCaptured(V, &OCT);
+  return OCT.Captured;
 }
 
 /// PointerMayBeCapturedBefore - Return true if this pointer value may be

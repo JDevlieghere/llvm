@@ -250,8 +250,9 @@ bool LoopInvariantCodeMotion::runOnLoop(Loop *L, AliasAnalysis *AA,
 
     // Loop over all of the alias sets in the tracker object.
     for (AliasSet &AS : *CurAST)
-      Changed |= promoteLoopAccessesToScalars(
-          AS, ExitBlocks, InsertPts, PIC, LI, DT, TLI, L, CurAST, &SafetyInfo);
+      Changed |=
+          promoteLoopAccessesToScalars(AS, ExitBlocks, InsertPts, PIC, LI, DT,
+                                       TLI, AA, L, CurAST, &SafetyInfo);
 
     // Once we have promoted values across the loop body we have to recursively
     // reform LCSSA as any nested loop may now have values defined within the
@@ -843,7 +844,8 @@ bool llvm::promoteLoopAccessesToScalars(
     AliasSet &AS, SmallVectorImpl<BasicBlock *> &ExitBlocks,
     SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &PIC,
     LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
-    Loop *CurLoop, AliasSetTracker *CurAST, LoopSafetyInfo *SafetyInfo) {
+    AliasAnalysis *AA, Loop *CurLoop, AliasSetTracker *CurAST,
+    LoopSafetyInfo *SafetyInfo) {
   // Verify inputs.
   assert(LI != nullptr && DT != nullptr && CurLoop != nullptr &&
          CurAST != nullptr && SafetyInfo != nullptr &&
@@ -1007,8 +1009,8 @@ bool llvm::promoteLoopAccessesToScalars(
     // paths which originally didn't have them without violating the memory
     // model.
     Value *Object = GetUnderlyingObject(SomePtr, MDL);
-    PromotionIsLegal =
-        isAllocLikeFn(Object, TLI) && !PointerMayBeCaptured(Object, true, true);
+    PromotionIsLegal = isAllocLikeFn(Object, TLI) &&
+                       !PointerMayBeCaptured(Object, true, false, AA);
   }
   if (!PromotionIsLegal)
     return Changed;

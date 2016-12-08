@@ -303,7 +303,7 @@ public:
                              const SCEV *Expr = nullptr);
 
   /// Returns true if \p Phi is a floating point induction in the loop \p L.
-  /// If \p Phi is an induction, the induction descriptor \p D will contain 
+  /// If \p Phi is an induction, the induction descriptor \p D will contain
   /// the data describing this induction.
   static bool isFPInductionPHI(PHINode *Phi, const Loop* L,
                                ScalarEvolution *SE, InductionDescriptor &D);
@@ -432,7 +432,8 @@ bool promoteLoopAccessesToScalars(AliasSet &, SmallVectorImpl<BasicBlock *> &,
                                   SmallVectorImpl<Instruction *> &,
                                   PredIteratorCache &, LoopInfo *,
                                   DominatorTree *, const TargetLibraryInfo *,
-                                  Loop *, AliasSetTracker *, LoopSafetyInfo *);
+                                  AliasAnalysis *AA, Loop *, AliasSetTracker *,
+                                  LoopSafetyInfo *);
 
 /// \brief Computes safety information for a loop
 /// checks loop body & header for the possibility of may throw
