@@ -215,12 +215,13 @@ PreservedAnalyses CaptureTrackingPrinterPass::run(Function &F,
                                                  FunctionAnalysisManager &AM) {
   OS << "Capture tracking results for function: " << F.getName() << "\n";
   auto& AA = AM.getResult<AAManager>(F);
-  for(auto& BB : F) {
-    for(auto& I : BB) {
-      if(auto* V = dyn_cast<Value>(&I)){
-      if(V->getType()->isPointerTy() && PointerMayBeCaptured(V, true, false, &AA)) {
-        OS << V->getName() << " may be captured\n";
-      }
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto *V = dyn_cast<Value>(&I)) {
+        if (V->getType()->isPointerTy() &&
+            PointerMayBeCaptured(V, true, false, &AA)) {
+          OS << V->getName() << " may be captured\n";
+        }
       }
     }
   }
