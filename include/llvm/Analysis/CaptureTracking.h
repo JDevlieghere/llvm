@@ -14,14 +14,19 @@
 #ifndef LLVM_ANALYSIS_CAPTURETRACKING_H
 #define LLVM_ANALYSIS_CAPTURETRACKING_H
 
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
+
 namespace llvm {
 
-  class Value;
-  class Use;
-  class Instruction;
-  class DominatorTree;
-  class OrderedBasicBlock;
   class AAResults;
+  class DominatorTree;
+  class Function;
+  class Instruction;
+  class OrderedBasicBlock;
+  class Use;
+  class Value;
+  class raw_ostream;
 
   /// PointerMayBeCaptured - Return true if this pointer value may be captured
   /// by the enclosing function (which is required to exist).  This routine can
@@ -82,6 +87,18 @@ namespace llvm {
     /// use U. Return true to stop the traversal or false to continue looking
     /// for more capturing instructions.
     virtual bool captured(const Use *U) = 0;
+  };
+
+  /// Printer pass for the EscapeInfo results.
+  class CaptureTrackingPrinterPass
+      : public PassInfoMixin<CaptureTrackingPrinterPass> {
+
+  public:
+    explicit CaptureTrackingPrinterPass(raw_ostream &OS);
+    PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+
+  private:
+    raw_ostream &OS;
   };
 
   /// PointerMayBeCaptured - Visit the value and the values derived from it and

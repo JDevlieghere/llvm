@@ -213,6 +213,26 @@ namespace {
   };
 }
 
+CaptureTrackingPrinterPass::CaptureTrackingPrinterPass(raw_ostream &OS)
+    : OS(OS) {}
+
+PreservedAnalyses CaptureTrackingPrinterPass::run(Function &F,
+                                                 FunctionAnalysisManager &AM) {
+  OS << "Escape Analysis for function: " << F.getName() << "\n";
+  auto& AA = AM.getResult<AAManager>(F);
+  for(auto& BB : F) {
+    for(auto& I : BB) {
+      if(auto* V = dyn_cast<Value>(&I)){
+      if(V->getType()->isPointerTy() && PointerMayBeCaptured(V, true, false, &AA)) {
+        OS << V->getName() << " may be captured\n";
+      }
+      }
+    }
+  }
+
+  return PreservedAnalyses::all();
+}
+
 /// PointerMayBeCaptured - Return true if this pointer value may be captured
 /// by the enclosing function (which is required to exist).  This routine can
 /// be expensive, so consider caching the results.  The boolean ReturnCaptures
