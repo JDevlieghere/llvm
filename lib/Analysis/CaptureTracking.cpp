@@ -78,27 +78,22 @@ namespace {
         if (!isa<PointerType>(Arg.getType()))
           continue;
 
-        if (auto *V = dyn_cast<Value>(&Arg)) {
-          if (!AA->isNoAlias(Ptr, V)) {
-            return true;
-          }
-        }
+        if (!AA->isNoAlias(Ptr, MemoryLocation::UnknownSize, &Arg,
+                           MemoryLocation::UnknownSize))
+          return true;
       }
 
       // Check if the pointer is stored to a global.
       for (auto &Global : F->getParent()->globals()) {
-        if (auto *V = dyn_cast<Value>(&Global)) {
-          if (!AA->isNoAlias(Ptr, V)) {
-            return true;
-          }
-        }
+        if (!AA->isNoAlias(Ptr, MemoryLocation::UnknownSize, &Global,
+                           MemoryLocation::UnknownSize))
+          return true;
       }
 
       return false;
     }
 
     bool captured(const Use *U) override {
-
       if (isa<ReturnInst>(U->getUser()) && !ReturnCaptures)
         return false;
 
@@ -218,7 +213,7 @@ CaptureTrackingPrinterPass::CaptureTrackingPrinterPass(raw_ostream &OS)
 
 PreservedAnalyses CaptureTrackingPrinterPass::run(Function &F,
                                                  FunctionAnalysisManager &AM) {
-  OS << "Escape Analysis for function: " << F.getName() << "\n";
+  OS << "Capture tracking results for function: " << F.getName() << "\n";
   auto& AA = AM.getResult<AAManager>(F);
   for(auto& BB : F) {
     for(auto& I : BB) {
@@ -385,11 +380,12 @@ void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker) {
       // "va-arg" from a pointer does not cause it to be captured.
       break;
     case Instruction::Store:
-        // Stored the pointer - conservatively assume it may be captured.
-        // Volatile stores make the address observable.
-      if (V == I->getOperand(0) || cast<StoreInst>(I)->isVolatile())
+      // Stored the pointer - conservatively assume it may be captured.
+      // Volatile stores make the address observable.
+      if (V == I->getOperand(0) || cast<StoreInst>(I)->isVolatile()) {
         if (Tracker->captured(U))
           return;
+      }
       break;
     case Instruction::AtomicRMW: {
       // atomicrmw conceptually includes both a load and store from
