@@ -417,6 +417,28 @@ unsigned DWARFVerifier::verifyDebugInfoAttribute(const DWARFDie &Die,
     }
     break;
 
+  case DW_AT_specification:
+  case DW_AT_abstract_origin:
+    // Make sure specification and abstract origin have compatible tags.
+    if (auto Offset = AttrValue.Value.getAsReference()) {
+      DWARFDie SpecDie = DCtx.getDIEForOffset(*Offset);
+      if (Die.getTag() == SpecDie.getTag())
+        break;
+      if (Die.getTag() == DW_TAG_inlined_subroutine &&
+          SpecDie.getTag() == DW_TAG_subprogram)
+        break;
+      if (Die.getTag() == DW_TAG_variable && SpecDie.getTag() == DW_TAG_member)
+        break;
+
+      error() << "DIE has incompatible " << AttributeString(Attr)
+              << " encoding: " << TagString(Die.getTag()) << " and "
+              << TagString(SpecDie.getTag());
+      Die.dump(OS, 0, DumpOpts);
+      note() << "Referenced DIE:";
+      SpecDie.dump(OS, 0, DumpOpts);
+    }
+    break;
+
   default:
     break;
   }
