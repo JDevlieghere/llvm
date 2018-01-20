@@ -283,10 +283,10 @@ class DwarfDebug : public DebugHandlerBase {
 
   AddressPool AddrPool;
 
-  DwarfAccelTable AccelNames;
-  DwarfAccelTable AccelObjC;
-  DwarfAccelTable AccelNamespace;
-  DwarfAccelTable AccelTypes;
+  AppleAccelTable<AppleAccelTableOffsetData> AccelNames;
+  AppleAccelTable<AppleAccelTableOffsetData> AccelObjC;
+  AppleAccelTable<AppleAccelTableOffsetData> AccelNamespace;
+  AppleAccelTable<AppleAccelTableTypeData> AccelTypes;
 
   // Identify a debugger for "tuning" the debug info.
   DebuggerKind DebuggerTuning = DebuggerKind::Default;
@@ -325,8 +325,15 @@ class DwarfDebug : public DebugHandlerBase {
   void emitAbbreviations();
 
   /// Emit a specified accelerator table.
-  void emitAccel(DwarfAccelTable &Accel, MCSection *Section,
-                 StringRef TableName);
+  template <typename AcceleratorTable>
+  void emitAccel(AcceleratorTable &Accel, MCSection *Section,
+                 StringRef TableName) {
+    Accel.FinalizeTable(Asm, TableName);
+    Asm->OutStreamer->SwitchSection(Section);
+
+    // Emit the full data.
+    Accel.Emit(Asm, Section->getBeginSymbol());
+  }
 
   /// Emit visible names into a hashed accelerator table section.
   void emitAccelNames();
