@@ -1,4 +1,4 @@
-//==- llvm/CodeGen/DwarfAccelTable.h - Dwarf Accelerator Tables --*- C++ -*-==//
+//==- include/llvm/CodeGen/AccelTable.h - Accelerator Tables -----*- C++ -*-==//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains support for writing dwarf accelerator tables.
+// This file contains support for writing accelerator tables.
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,37 +30,64 @@
 #include <cstdint>
 #include <vector>
 
-// The dwarf accelerator tables are an indirect hash table optimized
-// for null lookup rather than access to known data. They are output into
-// an on-disk format that looks like this:
+// The DWARF and Apple accelerator tables are an indirect hash table optimized
+// for null lookup rather than access to known data. The DWARFv5 accelerator
+// tables are a direct evolution of the Apple accelerator tables that are
+// implemented in LLVM, after going through the standardization process and
+// being reworked/generalized there.
 //
-// .-------------.
-// |  HEADER     |
-// |-------------|
-// |  BUCKETS    |
-// |-------------|
-// |  HASHES     |
-// |-------------|
-// |  OFFSETS    |
-// |-------------|
-// |  DATA       |
-// `-------------'
+// The Apple accelerator table are output into an on-disk format that looks
+// like this:
 //
-// where the header contains a magic number, version, type of hash function,
-// the number of buckets, total number of hashes, and room for a special
-// struct of data and the length of that struct.
+// .------------------.
+// |  HEADER          |
+// |------------------|
+// |  BUCKETS         |
+// |------------------|
+// |  HASHES          |
+// |------------------|
+// |  OFFSETS         |
+// |------------------|
+// |  DATA            |
+// `------------------'
+//
+// The header contains a magic number, version, type of hash function,
+// the number of buckets, total number of hashes, and room for a special struct
+// of data and the length of that struct.
 //
 // The buckets contain an index (e.g. 6) into the hashes array. The hashes
-// section contains all of the 32-bit hash values in contiguous memory, and
-// the offsets contain the offset into the data area for the particular
-// hash.
+// section contains all of the 32-bit hash values in contiguous memory, and the
+// offsets contain the offset into the data area for the particular hash.
 //
 // For a lookup example, we could hash a function name and take it modulo the
 // number of buckets giving us our bucket. From there we take the bucket value
 // as an index into the hashes table and look at each successive hash as long
 // as the hash value is still the same modulo result (bucket value) as earlier.
-// If we have a match we look at that same entry in the offsets table and
-// grab the offset in the data for our final match.
+// If we have a match we look at that same entry in the offsets table and grab
+// the offset in the data for our final match.
+//
+// The DWARF accelerator table consists of zero or more name indices that are
+// output into an on-disk format that looks like this:
+//
+// .------------------.
+// |  HEADER          |
+// |------------------|
+// |  CU LIST         |
+// |------------------|
+// |  LOCAL TU LIST   |
+// |------------------|
+// |  FOREIGN TU LIST |
+// |------------------|
+// |  HASH TABLE      |
+// |------------------|
+// |  NAME TABLE      |
+// |------------------|
+// |  ABBREV TABLE    |
+// |------------------|
+// |  ENTRY POOL      |
+// `------------------'
+//
+// For the full documentation please refer to the DWARF 5 standard.
 
 namespace llvm {
 
